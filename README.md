@@ -1,2 +1,14 @@
 # codestack-api
-CodeStack Application Backend
+
+## Get dependencies
+`$ cd codestack-api/`
+
+`$ go get`
+
+## Run
+
+`go run main.go`
+
+## Browse
+
+`http://localhost:8000`
