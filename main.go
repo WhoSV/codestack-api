@@ -94,7 +94,7 @@ func GetPerson(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// create a new user
+// Create a new user
 func CreatePerson(w http.ResponseWriter, r *http.Request) {
 	var person Person
 
