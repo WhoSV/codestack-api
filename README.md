@@ -1,14 +1,19 @@
-# codestack-api
+# Codestack-Api
 
-## Get dependencies
+CodeStack Application Backend
+
+## Getting started
+
+**Get dependencies**
+
 `$ cd codestack-api/`
 
 `$ go get`
 
-## Run
+**Run**
 
 `go run main.go`
 
-## Browse
+**Browse**
 
 `http://localhost:8000`
