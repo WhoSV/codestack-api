@@ -186,8 +186,6 @@ func CORSMiddleware(handler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		HandleCORS(w, r)
-
-		// Stop if the request is OPTIONS.
 		if r.Method == "OPTIONS" {
 			return
 		}
@@ -201,10 +199,10 @@ func main() {
 	defer db.Close()
 	router := mux.NewRouter()
 
-	router.HandleFunc("/people", CORSMiddleware(GetPeople)).Methods("GET")
-	router.HandleFunc("/people/{id}", CORSMiddleware(GetPerson)).Methods("GET")
-	router.HandleFunc("/people", CORSMiddleware(CreatePerson)).Methods("POST")
-	router.HandleFunc("/people/{id}", CORSMiddleware(DeletePerson)).Methods("DELETE")
+	router.HandleFunc("/people", CORSMiddleware(GetPeople)).Methods("OPTIONS", "GET")
+	router.HandleFunc("/people/{id}", CORSMiddleware(GetPerson)).Methods("OPTIONS", "GET")
+	router.HandleFunc("/people", CORSMiddleware(CreatePerson)).Methods("OPTIONS", "POST")
+	router.HandleFunc("/people/{id}", CORSMiddleware(DeletePerson)).Methods("OPTIONS", "DELETE")
 	log.Fatal(http.ListenAndServe(":8000", router))
 }
 
