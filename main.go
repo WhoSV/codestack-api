@@ -13,6 +13,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
+
+	Endpoints "../codestack-api/endpoints"
 )
 
 // User roles
@@ -262,37 +264,6 @@ func Authorize(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(&resp)
 }
 
-// HandleCORS is a CORS handler.
-func HandleCORS(w http.ResponseWriter, r *http.Request) {
-	origin := r.Header.Get("Origin")
-	if origin == "" {
-		origin = "*"
-	}
-
-	w.Header().Set("Access-Control-Allow-Origin", origin)
-	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-	w.Header().Set("Access-Control-Allow-Headers",
-		"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-
-	// Stop if the request is OPTIONS.
-	if r.Method == "OPTIONS" {
-		return
-	}
-}
-
-// CORSMiddleware sets up CORS headers.
-func CORSMiddleware(handler http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-
-		HandleCORS(w, r)
-		if r.Method == "OPTIONS" {
-			return
-		}
-		// Call the next handler.
-		handler.ServeHTTP(w, r)
-	}
-}
-
 func TokenAuthMiddleware(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		s := strings.Split(r.Header.Get("Authorization"), " ")
@@ -344,13 +315,13 @@ func main() {
 	router := mux.NewRouter()
 
 	// Authorization
-	router.HandleFunc("/auth", CORSMiddleware(Authorize)).Methods("OPTIONS", "POST")
+	router.HandleFunc("/auth", Endpoints.CORSMiddleware(Authorize)).Methods("OPTIONS", "POST")
 
 	// Users
-	router.HandleFunc("/people", CORSMiddleware(TokenAuthMiddleware(GetPeople))).Methods("OPTIONS", "GET")
-	router.HandleFunc("/people/{id}", CORSMiddleware(TokenAuthMiddleware(GetPerson))).Methods("OPTIONS", "GET")
-	router.HandleFunc("/people", CORSMiddleware(CreatePerson)).Methods("OPTIONS", "POST")
-	router.HandleFunc("/people/{id}", CORSMiddleware(TokenAuthMiddleware(DeletePerson))).Methods("OPTIONS", "DELETE")
+	router.HandleFunc("/people", Endpoints.CORSMiddleware(TokenAuthMiddleware(GetPeople))).Methods("OPTIONS", "GET")
+	router.HandleFunc("/people/{id}", Endpoints.CORSMiddleware(TokenAuthMiddleware(GetPerson))).Methods("OPTIONS", "GET")
+	router.HandleFunc("/people", Endpoints.CORSMiddleware(CreatePerson)).Methods("OPTIONS", "POST")
+	router.HandleFunc("/people/{id}", Endpoints.CORSMiddleware(TokenAuthMiddleware(DeletePerson))).Methods("OPTIONS", "DELETE")
 	log.Fatal(http.ListenAndServe(":8000", router))
 }
 
