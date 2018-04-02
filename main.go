@@ -207,6 +207,7 @@ func Authorize(w http.ResponseWriter, r *http.Request) {
 	var person Person
 
 	q := db.Where(Person{Email: data.Email}).First(&person)
+
 	if q.RecordNotFound() {
 		fmt.Printf("record not found\n")
 		w.Header().Set("Content-Type", "application/json")
@@ -255,9 +256,20 @@ func Authorize(w http.ResponseWriter, r *http.Request) {
 
 	// Success
 	var resp struct {
-		Token string `json:"token"`
+		Token      string `json:"token"`
+		ActiveUser struct {
+			ID       uint   `json:"id"`
+			FullName string `json:"full_name"`
+			Email    string `json:"email"`
+			Role     string `json:"role"`
+		} `json:"active_user"`
 	}
+
 	resp.Token = token
+	resp.ActiveUser.ID = person.ID
+	resp.ActiveUser.FullName = person.FullName
+	resp.ActiveUser.Email = person.Email
+	resp.ActiveUser.Role = person.Role
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -322,6 +334,7 @@ func main() {
 	router.HandleFunc("/people/{id}", Endpoints.CORSMiddleware(TokenAuthMiddleware(GetPerson))).Methods("OPTIONS", "GET")
 	router.HandleFunc("/people", Endpoints.CORSMiddleware(CreatePerson)).Methods("OPTIONS", "POST")
 	router.HandleFunc("/people/{id}", Endpoints.CORSMiddleware(TokenAuthMiddleware(DeletePerson))).Methods("OPTIONS", "DELETE")
+
 	log.Fatal(http.ListenAndServe(":8000", router))
 }
 
