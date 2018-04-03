@@ -322,20 +322,12 @@ func Authorize(w http.ResponseWriter, r *http.Request) {
 
 	// Success
 	var resp struct {
-		Token      string `json:"token"`
-		ActiveUser struct {
-			ID       uint   `json:"id"`
-			FullName string `json:"full_name"`
-			Email    string `json:"email"`
-			Role     string `json:"role"`
-		} `json:"active_user"`
+		Token string `json:"token"`
+		Id    uint   `json:"id"`
 	}
 
 	resp.Token = token
-	resp.ActiveUser.ID = person.ID
-	resp.ActiveUser.FullName = person.FullName
-	resp.ActiveUser.Email = person.Email
-	resp.ActiveUser.Role = person.Role
+	resp.Id = person.ID
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
