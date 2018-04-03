@@ -169,6 +169,72 @@ func DeletePerson(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// Update user
+func UpdatePerson(w http.ResponseWriter, r *http.Request) {
+	var data struct {
+		Id       uint   `json:"id"`
+		FullName string `json:"full_name"`
+		Email    string `json:"email"`
+	}
+
+	params := mux.Vars(r)
+
+	var person Person
+
+	// Fetch user from db.
+	if id := params["id"]; len(id) > 0 {
+		id, err := strconv.Atoi(id)
+		if err != nil {
+			fmt.Printf("can not convert from string to int: %v\n", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			return
+		}
+
+		q := db.First(&person, id)
+		if q.RecordNotFound() {
+			fmt.Printf("record not found: %v\n", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(ErrorMsg{"record not found"})
+			return
+		} else if q.Error != nil {
+			fmt.Printf("can not convert from string to int: %v\n", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			return
+		}
+
+		// Decode request body into data.
+		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+			fmt.Printf("json decode failed: %v\n", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			return
+		}
+
+		// Update account info in DB.
+		person.FullName = data.FullName
+		person.Email = data.Email
+
+		if err := db.Save(&person).Error; err != nil {
+			fmt.Printf("unknown database error: %v\n", q.Error)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(ErrorMsg{"unknown database error"})
+			return
+		}
+
+		// Success
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(&person)
+	}
+}
+
 // Authorization Handler
 func Authorize(w http.ResponseWriter, r *http.Request) {
 	var data struct {
@@ -333,6 +399,7 @@ func main() {
 	router.HandleFunc("/people", Endpoints.CORSMiddleware(TokenAuthMiddleware(GetPeople))).Methods("OPTIONS", "GET")
 	router.HandleFunc("/people/{id}", Endpoints.CORSMiddleware(TokenAuthMiddleware(GetPerson))).Methods("OPTIONS", "GET")
 	router.HandleFunc("/people", Endpoints.CORSMiddleware(CreatePerson)).Methods("OPTIONS", "POST")
+	router.HandleFunc("/people/{id}", Endpoints.CORSMiddleware(UpdatePerson)).Methods("OPTIONS", "PUT", "PATCH")
 	router.HandleFunc("/people/{id}", Endpoints.CORSMiddleware(TokenAuthMiddleware(DeletePerson))).Methods("OPTIONS", "DELETE")
 
 	log.Fatal(http.ListenAndServe(":8000", router))
