@@ -373,7 +373,7 @@ func ResertPassword(w http.ResponseWriter, r *http.Request) {
 
 	from := "codeestacks@gmail.com"
 	pass := "Neareastuniversity"
-	to := "vladislavsiumbeli@gmail.com" // data.Email
+	to := data.Email
 	body := "Your password is " + person.Password
 	msg := "From: " + from + "\n" + "To: " + to + "\n" + "Subject: Reset Password from CodeStack\n\n" + body
 
