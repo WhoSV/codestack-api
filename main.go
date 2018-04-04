@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/smtp"
 
 	"encoding/json"
 	"net/http"
@@ -14,7 +15,7 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 
-	Endpoints "../codestack-api/endpoints"
+	e "../codestack-api/endpoints"
 )
 
 // User roles
@@ -111,12 +112,12 @@ func CreatePerson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if Email provided by user is unique
 	q := db.Where(Person{Email: person.Email}).First(&person)
-
 	if !q.RecordNotFound() {
 		fmt.Printf("email must be unique\n")
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusConflict)
 		json.NewEncoder(w).Encode(ErrorMsg{"email must be unique"})
 		return
 	}
@@ -225,10 +226,11 @@ func UpdatePerson(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Check if Email provided by user is unique
 		if person.Email == data.Email {
 			fmt.Printf("email must be unique\n")
 			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusConflict)
 			json.NewEncoder(w).Encode(ErrorMsg{"email must be unique"})
 			return
 		}
@@ -252,7 +254,7 @@ func UpdatePerson(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// UpdatePersonPassword
+// Update Person Password
 func UpdatePersonPassword(w http.ResponseWriter, r *http.Request) {
 	var data struct {
 		Id          uint   `json:"id"`
@@ -323,6 +325,70 @@ func UpdatePersonPassword(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(&person)
 	}
+}
+
+// Reset password
+func ResertPassword(w http.ResponseWriter, r *http.Request) {
+	var data struct {
+		Email string `json:"email"`
+	}
+
+	// Decode request body into data.
+	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+		fmt.Printf("json decode failed: %v\n", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+		return
+	}
+
+	// Validate user provided email.
+	if len(data.Email) == 0 {
+		err := fmt.Errorf("email can not be empty")
+		fmt.Printf("validation failed: %v\n", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorMsg{"validation failed"})
+		return
+	}
+
+	// Fetch user by email address provided.
+	var person Person
+
+	q := db.Where(Person{Email: data.Email}).First(&person)
+
+	if q.RecordNotFound() {
+		fmt.Printf("record not found\n")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(ErrorMsg{"invalid email or password"})
+		return
+	} else if q.Error != nil {
+		fmt.Printf("unknown database error: %v\n", q.Error)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorMsg{"unknown database error"})
+		return
+	}
+
+	from := "codeestacks@gmail.com"
+	pass := "Neareastuniversity"
+	to := "vladislavsiumbeli@gmail.com" // data.Email
+	body := "Your password is " + person.Password
+	msg := "From: " + from + "\n" + "To: " + to + "\n" + "Subject: Reset Password from CodeStack\n\n" + body
+
+	if err := smtp.SendMail("smtp.gmail.com:587", smtp.PlainAuth("", from, pass, "smtp.gmail.com"), from, []string{to}, []byte(msg)); err != nil {
+		fmt.Printf("smtp error: %v\n", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorMsg{"smtp error"})
+		return
+	}
+
+	// Success
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(&person)
 }
 
 // Authorization Handler
@@ -475,15 +541,18 @@ func main() {
 	router := mux.NewRouter()
 
 	// Authorization
-	router.HandleFunc("/auth", Endpoints.CORSMiddleware(Authorize)).Methods("OPTIONS", "POST")
+	router.HandleFunc("/auth", e.CORSMiddleware(Authorize)).Methods("OPTIONS", "POST")
 
 	// Users
-	router.HandleFunc("/people", Endpoints.CORSMiddleware(TokenAuthMiddleware(GetPeople))).Methods("OPTIONS", "GET")
-	router.HandleFunc("/people/{id}", Endpoints.CORSMiddleware(TokenAuthMiddleware(GetPerson))).Methods("OPTIONS", "GET")
-	router.HandleFunc("/people", Endpoints.CORSMiddleware(CreatePerson)).Methods("OPTIONS", "POST")
-	router.HandleFunc("/people/{id}", Endpoints.CORSMiddleware(UpdatePerson)).Methods("OPTIONS", "PUT", "PATCH")
-	router.HandleFunc("/people/{id}/update", Endpoints.CORSMiddleware(UpdatePersonPassword)).Methods("OPTIONS", "PUT", "PATCH")
-	router.HandleFunc("/people/{id}", Endpoints.CORSMiddleware(TokenAuthMiddleware(DeletePerson))).Methods("OPTIONS", "DELETE")
+	router.HandleFunc("/people", e.CORSMiddleware(TokenAuthMiddleware(GetPeople))).Methods("OPTIONS", "GET")
+	router.HandleFunc("/people/{id}", e.CORSMiddleware(TokenAuthMiddleware(GetPerson))).Methods("OPTIONS", "GET")
+	router.HandleFunc("/people", e.CORSMiddleware(CreatePerson)).Methods("OPTIONS", "POST")
+	router.HandleFunc("/people/{id}", e.CORSMiddleware(UpdatePerson)).Methods("OPTIONS", "PUT", "PATCH")
+	router.HandleFunc("/people/{id}/update", e.CORSMiddleware(UpdatePersonPassword)).Methods("OPTIONS", "PUT", "PATCH")
+	router.HandleFunc("/people/{id}", e.CORSMiddleware(TokenAuthMiddleware(DeletePerson))).Methods("OPTIONS", "DELETE")
+
+	// Reset Password
+	router.HandleFunc("/people/reset", e.CORSMiddleware(ResertPassword)).Methods("OPTIONS", "POST")
 
 	log.Fatal(http.ListenAndServe(":8000", router))
 }
