@@ -111,6 +111,16 @@ func CreatePerson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	q := db.Where(Person{Email: person.Email}).First(&person)
+
+	if !q.RecordNotFound() {
+		fmt.Printf("email must be unique\n")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorMsg{"email must be unique"})
+		return
+	}
+
 	// Create new person in DB.
 	if err := db.Create(&person).Error; err != nil {
 		fmt.Printf("person creation failed: %v\n", err)
@@ -119,7 +129,6 @@ func CreatePerson(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(ErrorMsg{"person creation failed"})
 		return
 	}
-	// TODO(vlad): Handle the case where user email is not unique.
 
 	w.WriteHeader(http.StatusCreated)
 }
@@ -213,6 +222,14 @@ func UpdatePerson(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			return
+		}
+
+		if person.Email == data.Email {
+			fmt.Printf("email must be unique\n")
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(ErrorMsg{"email must be unique"})
 			return
 		}
 
