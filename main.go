@@ -329,7 +329,7 @@ func Authorize(w http.ResponseWriter, r *http.Request) {
 		err := fmt.Errorf("email can not be empty")
 		fmt.Printf("validation failed: %v\n", err)
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ErrorMsg{"validation failed"})
 		return
 	}
@@ -337,7 +337,7 @@ func Authorize(w http.ResponseWriter, r *http.Request) {
 		err := fmt.Errorf("password can not be empty")
 		fmt.Printf("validation failed: %v\n", err)
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ErrorMsg{"validation failed"})
 		return
 	}
