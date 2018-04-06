@@ -27,6 +27,14 @@ const (
 	RoleStudent = "STUDENT"
 )
 
+// Course status
+const (
+	StatusUndefined = "UNDEFINED"
+
+	StatusActive  = "ACTIVE"
+	StatusBlocked = "BLOCKED"
+)
+
 // The person Type
 type Person struct {
 	ID       uint   `json:"id,omitempty" gorm:"primary_key"`
@@ -35,6 +43,16 @@ type Person struct {
 	Role     string `json:"role,omitempty"`
 	Password string `json:"password,omitempty"`
 	Token    string `json:"token"`
+}
+
+// The course Type
+type Course struct {
+	ID          uint   `json:"id,omitempty" gorm:"primary_key"`
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+	Teacher     string `json:"teacher,omitempty"`
+	Status      string `json:"status,omitempty"`
+	Link        string `json:"link"`
 }
 
 type ErrorMsg struct {
@@ -490,6 +508,47 @@ func Authorize(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(&resp)
 }
 
+// Display all from the course var
+func GetCourses(w http.ResponseWriter, r *http.Request) {
+	var courses []Course
+
+	if err := db.Find(&courses).Error; err != nil {
+		fmt.Printf("can not get all courses from db: %v\n", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorMsg{"can not get all courses from db"})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(&courses)
+}
+
+// Create a Course
+func CreateCourse(w http.ResponseWriter, r *http.Request) {
+	var course Course
+
+	if err := json.NewDecoder(r.Body).Decode(&course); err != nil {
+		fmt.Printf("json decode failed: %v\n", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+		return
+	}
+
+	// Create new course in DB.
+	if err := db.Create(&course).Error; err != nil {
+		fmt.Printf("course creation failed: %v\n", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorMsg{"course creation failed"})
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
 func TokenAuthMiddleware(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		s := strings.Split(r.Header.Get("Authorization"), " ")
@@ -550,9 +609,10 @@ func main() {
 	router.HandleFunc("/people/{id}", e.CORSMiddleware(UpdatePerson)).Methods("OPTIONS", "PUT", "PATCH")
 	router.HandleFunc("/people/{id}/update", e.CORSMiddleware(UpdatePersonPassword)).Methods("OPTIONS", "PUT", "PATCH")
 	router.HandleFunc("/people/{id}", e.CORSMiddleware(TokenAuthMiddleware(DeletePerson))).Methods("OPTIONS", "DELETE")
-
-	// Reset Password
 	router.HandleFunc("/people/reset", e.CORSMiddleware(ResertPassword)).Methods("OPTIONS", "POST")
+
+	router.HandleFunc("/courses", e.CORSMiddleware(TokenAuthMiddleware(GetCourses))).Methods("OPTIONS", "GET")
+	router.HandleFunc("/courses", e.CORSMiddleware(TokenAuthMiddleware(CreateCourse))).Methods("OPTIONS", "POST")
 
 	log.Fatal(http.ListenAndServe(":8000", router))
 }
@@ -565,5 +625,5 @@ func init() {
 		fmt.Printf("database connection failed: %v", err)
 		return
 	}
-	db.AutoMigrate(&Person{})
+	db.AutoMigrate(&Person{}, &Course{})
 }
