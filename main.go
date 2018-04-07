@@ -55,6 +55,7 @@ type Course struct {
 	Link        string `json:"link"`
 }
 
+// The error message Type
 type ErrorMsg struct {
 	Message string `json:"message"`
 }
@@ -78,7 +79,7 @@ func GetPeople(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(&people)
 }
 
-// Display a single data
+// Display a single User
 func GetPerson(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
@@ -152,7 +153,7 @@ func CreatePerson(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-// Delete an item
+// Delete an User
 func DeletePerson(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
@@ -272,7 +273,7 @@ func UpdatePerson(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Update Person Password
+// Update User Password
 func UpdatePersonPassword(w http.ResponseWriter, r *http.Request) {
 	var data struct {
 		Id          uint   `json:"id"`
@@ -345,7 +346,7 @@ func UpdatePersonPassword(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Reset password
+// Reset User password
 func ResertPassword(w http.ResponseWriter, r *http.Request) {
 	var data struct {
 		Email string `json:"email"`
@@ -549,6 +550,51 @@ func CreateCourse(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+// Delete Course
+func DeleteCourse(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+
+	var course Course
+
+	// Fetch course from db.
+	if id := params["id"]; len(id) > 0 {
+		id, err := strconv.Atoi(id)
+		if err != nil {
+			fmt.Printf("can not convert from string to int: %v\n", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			return
+		}
+
+		q := db.First(&course, id)
+		if q.RecordNotFound() {
+			fmt.Printf("record not found: %v\n", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(ErrorMsg{"record not found"})
+			return
+		} else if q.Error != nil {
+			fmt.Printf("can not convert from string to int: %v\n", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			return
+		}
+
+		if err := db.Delete(&course).Error; err != nil {
+			fmt.Printf("can not delete course: %v\n", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(ErrorMsg{"can not delete course"})
+			return
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func TokenAuthMiddleware(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		s := strings.Split(r.Header.Get("Authorization"), " ")
@@ -613,6 +659,7 @@ func main() {
 
 	router.HandleFunc("/courses", e.CORSMiddleware(TokenAuthMiddleware(GetCourses))).Methods("OPTIONS", "GET")
 	router.HandleFunc("/courses", e.CORSMiddleware(TokenAuthMiddleware(CreateCourse))).Methods("OPTIONS", "POST")
+	router.HandleFunc("/courses/{id}", e.CORSMiddleware(TokenAuthMiddleware(DeleteCourse))).Methods("OPTIONS", "DELETE")
 
 	log.Fatal(http.ListenAndServe(":8000", router))
 }
