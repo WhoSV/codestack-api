@@ -53,6 +53,7 @@ type Course struct {
 	Teacher     string `json:"teacher,omitempty"`
 	Status      string `json:"status,omitempty"`
 	Link        string `json:"link"`
+	CreatedAt   string `json:"created_at,omitempty"`
 }
 
 // The error message Type
