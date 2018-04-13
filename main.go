@@ -15,7 +15,7 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 
-	e "../codestack-api/endpoints"
+	e "codestack-api/endpoints"
 )
 
 // User roles
@@ -35,7 +35,7 @@ const (
 	StatusBlocked = "BLOCKED"
 )
 
-// The person Type
+// Person : The person Type
 type Person struct {
 	ID       uint   `json:"id,omitempty" gorm:"primary_key"`
 	FullName string `json:"full_name,omitempty"`
@@ -45,7 +45,7 @@ type Person struct {
 	Token    string `json:"token"`
 }
 
-// The course Type
+// Course :The course Type
 type Course struct {
 	ID          uint   `json:"id,omitempty" gorm:"primary_key"`
 	Name        string `json:"name,omitempty"`
@@ -56,14 +56,21 @@ type Course struct {
 	CreatedAt   string `json:"created_at,omitempty"`
 }
 
-// The error message Type
+// Favorite : The Favorite Type
+type Favorite struct {
+	ID       uint `json:"id,omitempty" gorm:"primary_key"`
+	UserID   int  `json:"user_id,omitempty"`
+	CourseID int  `json:"course_id,omitempty"`
+}
+
+// ErrorMsg : The error message Type
 type ErrorMsg struct {
 	Message string `json:"message"`
 }
 
 var db *gorm.DB
 
-// Display all from the people var
+// GetPeople : Display all from the people var
 func GetPeople(w http.ResponseWriter, r *http.Request) {
 	var people []Person
 
@@ -80,7 +87,7 @@ func GetPeople(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(&people)
 }
 
-// Display a single User
+// GetPerson : Display a single User
 func GetPerson(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
@@ -120,7 +127,7 @@ func GetPerson(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// Create a new User
+// CreatePerson : Create a new User
 func CreatePerson(w http.ResponseWriter, r *http.Request) {
 	var person Person
 
@@ -154,7 +161,7 @@ func CreatePerson(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-// Delete an User
+// DeletePerson : Delete an User
 func DeletePerson(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
@@ -199,10 +206,10 @@ func DeletePerson(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// Update User
+// UpdatePerson : Update User
 func UpdatePerson(w http.ResponseWriter, r *http.Request) {
 	var data struct {
-		Id       uint   `json:"id"`
+		ID       uint   `json:"id"`
 		FullName string `json:"full_name"`
 		Email    string `json:"email"`
 	}
@@ -274,10 +281,10 @@ func UpdatePerson(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Update User password
+// UpdatePersonPassword : Update User password
 func UpdatePersonPassword(w http.ResponseWriter, r *http.Request) {
 	var data struct {
-		Id          uint   `json:"id"`
+		ID          uint   `json:"id"`
 		Password    string `json:"password"`
 		NewPassword string `json:"new_password"`
 	}
@@ -347,8 +354,8 @@ func UpdatePersonPassword(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Reset User password
-func ResertPassword(w http.ResponseWriter, r *http.Request) {
+// ResetPassword : Reset User password
+func ResetPassword(w http.ResponseWriter, r *http.Request) {
 	var data struct {
 		Email string `json:"email"`
 	}
@@ -406,12 +413,106 @@ func ResertPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Success
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(&person)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-// Authorization Handler
+// AddFavorite : Add favorite course to user
+func AddFavorite(w http.ResponseWriter, r *http.Request) {
+	var favorite Favorite
+
+	if err := json.NewDecoder(r.Body).Decode(&favorite); err != nil {
+		fmt.Printf("json decode failed: %v\n", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+		return
+	}
+
+	// Check if course already favorite
+	// q := db.Where(Favorite{userID: favorite.userID} && Favorite{courseID: favorite.courseID}).First(&favorite)
+	// if !q.RecordNotFound() {
+	// 	fmt.Printf("course is already favorite\n")
+	// 	w.Header().Set("Content-Type", "application/json")
+	// 	w.WriteHeader(http.StatusConflict)
+	// 	json.NewEncoder(w).Encode(ErrorMsg{"course is already favorite"})
+	// 	return
+	// }
+
+	// Create favorite in DB.
+	if err := db.Create(&favorite).Error; err != nil {
+		fmt.Printf("favorite creation failed: %v\n", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorMsg{"favorite creation failed"})
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+// GetFavorites : Display all from Favorite db
+func GetFavorites(w http.ResponseWriter, r *http.Request) {
+	var favorite []Favorite
+
+	if err := db.Find(&favorite).Error; err != nil {
+		fmt.Printf("can not get all favorite from db: %v\n", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorMsg{"can not get all favorite from db"})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(&favorite)
+}
+
+// DeleteFavorite : Delete Favorite course
+func DeleteFavorite(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+
+	var favorite Favorite
+
+	// Fetch favorite from db.
+	if id := params["id"]; len(id) > 0 {
+		id, err := strconv.Atoi(id)
+		if err != nil {
+			fmt.Printf("can not convert from string to int: %v\n", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			return
+		}
+
+		q := db.First(&favorite, id)
+		if q.RecordNotFound() {
+			fmt.Printf("record not found: %v\n", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(ErrorMsg{"record not found"})
+			return
+		} else if q.Error != nil {
+			fmt.Printf("can not convert from string to int: %v\n", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			return
+		}
+
+		if err := db.Delete(&favorite).Error; err != nil {
+			fmt.Printf("can not delete person: %v\n", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(ErrorMsg{"can not delete person"})
+			return
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// Authorize : Authorization Handler
 func Authorize(w http.ResponseWriter, r *http.Request) {
 	var data struct {
 		Email    string `json:"email"`
@@ -499,18 +600,18 @@ func Authorize(w http.ResponseWriter, r *http.Request) {
 	// Success
 	var resp struct {
 		Token string `json:"token"`
-		Id    uint   `json:"id"`
+		ID    uint   `json:"id"`
 	}
 
 	resp.Token = token
-	resp.Id = person.ID
+	resp.ID = person.ID
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(&resp)
 }
 
-// Display all from the course var
+// GetCourses : Display all from the course var
 func GetCourses(w http.ResponseWriter, r *http.Request) {
 	var courses []Course
 
@@ -527,7 +628,7 @@ func GetCourses(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(&courses)
 }
 
-// Display a single Course
+// GetCourse : Display a single Course
 func GetCourse(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
@@ -567,9 +668,12 @@ func GetCourse(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// Create a Course
+// CreateCourse : Create a Course
 func CreateCourse(w http.ResponseWriter, r *http.Request) {
-	var course Course
+	var course struct {
+		Course
+		FileBody string `json:"file_body"`
+	}
 
 	if err := json.NewDecoder(r.Body).Decode(&course); err != nil {
 		fmt.Printf("json decode failed: %v\n", err)
@@ -578,9 +682,12 @@ func CreateCourse(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
 		return
 	}
+	// TODO: decode base64 file_body
+	// TODO: name file to course id
+	// TODO: store file
 
 	// Create new course in DB.
-	if err := db.Create(&course).Error; err != nil {
+	if err := db.Create(&course.Course).Error; err != nil {
 		fmt.Printf("course creation failed: %v\n", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -591,10 +698,10 @@ func CreateCourse(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-// Update Course
+// UpdateCourse : Update Course
 func UpdateCourse(w http.ResponseWriter, r *http.Request) {
 	var data struct {
-		Id          uint   `json:"id"`
+		ID          uint   `json:"id"`
 		Name        string `json:"name"`
 		Description string `json:"description"`
 		Link        string `json:"link"`
@@ -644,6 +751,8 @@ func UpdateCourse(w http.ResponseWriter, r *http.Request) {
 		course.Description = data.Description
 		course.Link = data.Link
 
+		// TODO:  overrite file like on create
+
 		if err := db.Save(&course).Error; err != nil {
 			fmt.Printf("unknown database error: %v\n", q.Error)
 			w.Header().Set("Content-Type", "application/json")
@@ -659,10 +768,10 @@ func UpdateCourse(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Update Course status
+// UpdateCourseStatus : Update Course status
 func UpdateCourseStatus(w http.ResponseWriter, r *http.Request) {
 	var data struct {
-		Id     uint   `json:"id"`
+		ID     uint   `json:"id"`
 		Status string `json:"status"`
 	}
 
@@ -723,7 +832,7 @@ func UpdateCourseStatus(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Delete Course
+// DeleteCourse : Delete Course
 func DeleteCourse(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
@@ -768,6 +877,7 @@ func DeleteCourse(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// TokenAuthMiddleware : Generate auth token
 func TokenAuthMiddleware(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		s := strings.Split(r.Header.Get("Authorization"), " ")
@@ -828,7 +938,12 @@ func main() {
 	router.HandleFunc("/people/{id}", e.CORSMiddleware(UpdatePerson)).Methods("OPTIONS", "PUT", "PATCH")
 	router.HandleFunc("/people/{id}/update", e.CORSMiddleware(UpdatePersonPassword)).Methods("OPTIONS", "PUT", "PATCH")
 	router.HandleFunc("/people/{id}", e.CORSMiddleware(TokenAuthMiddleware(DeletePerson))).Methods("OPTIONS", "DELETE")
-	router.HandleFunc("/people/reset", e.CORSMiddleware(ResertPassword)).Methods("OPTIONS", "POST")
+	router.HandleFunc("/people/reset", e.CORSMiddleware(ResetPassword)).Methods("OPTIONS", "POST")
+
+	// Favorite
+	router.HandleFunc("/favorite", e.CORSMiddleware(TokenAuthMiddleware(AddFavorite))).Methods("OPTIONS", "POST")
+	router.HandleFunc("/favorite", e.CORSMiddleware(TokenAuthMiddleware(GetFavorites))).Methods("OPTIONS", "GET")
+	router.HandleFunc("/favorite/{id}", e.CORSMiddleware(TokenAuthMiddleware(DeleteFavorite))).Methods("OPTIONS", "DELETE")
 
 	// Courses
 	router.HandleFunc("/courses", e.CORSMiddleware(TokenAuthMiddleware(GetCourses))).Methods("OPTIONS", "GET")
@@ -849,5 +964,5 @@ func init() {
 		fmt.Printf("database connection failed: %v", err)
 		return
 	}
-	db.AutoMigrate(&Person{}, &Course{})
+	db.AutoMigrate(&Person{}, &Course{}, &Favorite{})
 }
