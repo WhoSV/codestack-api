@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"log"
 	"net/smtp"
+	"os"
 
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -35,7 +37,7 @@ const (
 	StatusBlocked = "BLOCKED"
 )
 
-// Person : The person Type
+// Person Type
 type Person struct {
 	ID       uint   `json:"id,omitempty" gorm:"primary_key"`
 	FullName string `json:"full_name,omitempty"`
@@ -45,32 +47,32 @@ type Person struct {
 	Token    string `json:"token"`
 }
 
-// Course :The course Type
+// Course Type
 type Course struct {
 	ID          uint   `json:"id,omitempty" gorm:"primary_key"`
 	Name        string `json:"name,omitempty"`
 	Description string `json:"description,omitempty"`
 	Teacher     string `json:"teacher,omitempty"`
 	Status      string `json:"status,omitempty"`
-	Link        string `json:"link"`
 	CreatedAt   string `json:"created_at,omitempty"`
+	FileName    string `json:"file_name,omitempty"`
 }
 
-// Favorite : The Favorite Type
+// Favorite Type
 type Favorite struct {
 	ID       uint `json:"id,omitempty" gorm:"primary_key"`
 	UserID   int  `json:"user_id,omitempty"`
 	CourseID int  `json:"course_id,omitempty"`
 }
 
-// ErrorMsg : The error message Type
+// ErrorMsg Type
 type ErrorMsg struct {
 	Message string `json:"message"`
 }
 
 var db *gorm.DB
 
-// GetPeople : Display all from the people var
+// GetPeople from the people var
 func GetPeople(w http.ResponseWriter, r *http.Request) {
 	var people []Person
 
@@ -87,7 +89,7 @@ func GetPeople(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(&people)
 }
 
-// GetPerson : Display a single User
+// GetPerson display's a single User
 func GetPerson(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
@@ -127,7 +129,7 @@ func GetPerson(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// CreatePerson : Create a new User
+// CreatePerson ...
 func CreatePerson(w http.ResponseWriter, r *http.Request) {
 	var person Person
 
@@ -161,7 +163,7 @@ func CreatePerson(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-// DeletePerson : Delete an User
+// DeletePerson ...
 func DeletePerson(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
@@ -206,7 +208,7 @@ func DeletePerson(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// UpdatePerson : Update User
+// UpdatePerson ...
 func UpdatePerson(w http.ResponseWriter, r *http.Request) {
 	var data struct {
 		ID       uint   `json:"id"`
@@ -281,7 +283,7 @@ func UpdatePerson(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// UpdatePersonPassword : Update User password
+// UpdatePersonPassword ...
 func UpdatePersonPassword(w http.ResponseWriter, r *http.Request) {
 	var data struct {
 		ID          uint   `json:"id"`
@@ -354,7 +356,7 @@ func UpdatePersonPassword(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// ResetPassword : Reset User password
+// ResetPassword send's password by email to User
 func ResetPassword(w http.ResponseWriter, r *http.Request) {
 	var data struct {
 		Email string `json:"email"`
@@ -416,7 +418,7 @@ func ResetPassword(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// AddFavorite : Add favorite course to user
+// AddFavorite course to user
 func AddFavorite(w http.ResponseWriter, r *http.Request) {
 	var favorite Favorite
 
@@ -428,6 +430,7 @@ func AddFavorite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO
 	// Check if course already favorite
 	// q := db.Where(Favorite{userID: favorite.userID} && Favorite{courseID: favorite.courseID}).First(&favorite)
 	// if !q.RecordNotFound() {
@@ -450,7 +453,7 @@ func AddFavorite(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-// GetFavorites : Display all from Favorite db
+// GetFavorites display's all from Favorite db
 func GetFavorites(w http.ResponseWriter, r *http.Request) {
 	var favorite []Favorite
 
@@ -467,7 +470,7 @@ func GetFavorites(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(&favorite)
 }
 
-// DeleteFavorite : Delete Favorite course
+// DeleteFavorite course
 func DeleteFavorite(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
@@ -611,7 +614,7 @@ func Authorize(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(&resp)
 }
 
-// GetCourses : Display all from the course var
+// GetCourses display's all from the course var
 func GetCourses(w http.ResponseWriter, r *http.Request) {
 	var courses []Course
 
@@ -628,7 +631,7 @@ func GetCourses(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(&courses)
 }
 
-// GetCourse : Display a single Course
+// GetCourse display's a single Course
 func GetCourse(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
@@ -668,7 +671,7 @@ func GetCourse(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// CreateCourse : Create a Course
+// CreateCourse ...
 func CreateCourse(w http.ResponseWriter, r *http.Request) {
 	var course struct {
 		Course
@@ -682,9 +685,15 @@ func CreateCourse(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
 		return
 	}
-	// TODO: decode base64 file_body
-	// TODO: name file to course id
-	// TODO: store file
+
+	// Acquire the data
+	b64data := course.FileBody[strings.IndexByte(course.FileBody, ',')+1:]
+
+	// Decode base64 data
+	data, err := base64.StdEncoding.DecodeString(b64data)
+	if err != nil {
+		fmt.Println("error:", err)
+	}
 
 	// Create new course in DB.
 	if err := db.Create(&course.Course).Error; err != nil {
@@ -695,16 +704,31 @@ func CreateCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	id := fmt.Sprint(course.Course.ID)
+	f, err := os.Create("data/" + id + ".pdf")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	if _, err := f.Write(data); err != nil {
+		panic(err)
+	}
+	if err := f.Sync(); err != nil {
+		panic(err)
+	}
+
 	w.WriteHeader(http.StatusCreated)
 }
 
-// UpdateCourse : Update Course
+// UpdateCourse ...
 func UpdateCourse(w http.ResponseWriter, r *http.Request) {
 	var data struct {
 		ID          uint   `json:"id"`
 		Name        string `json:"name"`
 		Description string `json:"description"`
-		Link        string `json:"link"`
+		FileName    string `json:"file_name"`
+		FileBody    string `json:"file_body"`
 	}
 
 	params := mux.Vars(r)
@@ -746,12 +770,33 @@ func UpdateCourse(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Acquire the data
+		b64data := data.FileBody[strings.IndexByte(data.FileBody, ',')+1:]
+
+		// Decode base64 data
+		newData, err := base64.StdEncoding.DecodeString(b64data)
+		if err != nil {
+			fmt.Println("error:", err)
+		}
+
+		iid := fmt.Sprint(course.ID)
+		f, err := os.Create("data/" + iid + ".pdf")
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
+
+		if _, err := f.Write(newData); err != nil {
+			panic(err)
+		}
+		if err := f.Sync(); err != nil {
+			panic(err)
+		}
+
 		// Update course info in DB.
 		course.Name = data.Name
 		course.Description = data.Description
-		course.Link = data.Link
-
-		// TODO:  overrite file like on create
+		course.FileName = data.FileName
 
 		if err := db.Save(&course).Error; err != nil {
 			fmt.Printf("unknown database error: %v\n", q.Error)
@@ -768,7 +813,7 @@ func UpdateCourse(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// UpdateCourseStatus : Update Course status
+// UpdateCourseStatus ...
 func UpdateCourseStatus(w http.ResponseWriter, r *http.Request) {
 	var data struct {
 		ID     uint   `json:"id"`
@@ -832,7 +877,7 @@ func UpdateCourseStatus(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// DeleteCourse : Delete Course
+// DeleteCourse ...
 func DeleteCourse(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
