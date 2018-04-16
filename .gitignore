@@ -3,7 +3,7 @@ codestack.db
 .DS_Store
 public/bundle.js
 .vscode
-data
+*.pdf
 
 # OSX
 #
