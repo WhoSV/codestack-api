@@ -433,14 +433,14 @@ func AddFavorite(w http.ResponseWriter, r *http.Request) {
 
 	// TODO
 	// Check if course already favorite
-	// q := db.Where(Favorite{userID: favorite.userID} && Favorite{courseID: favorite.courseID}).First(&favorite)
-	// if !q.RecordNotFound() {
-	// 	fmt.Printf("course is already favorite\n")
-	// 	w.Header().Set("Content-Type", "application/json")
-	// 	w.WriteHeader(http.StatusConflict)
-	// 	json.NewEncoder(w).Encode(ErrorMsg{"course is already favorite"})
-	// 	return
-	// }
+	q := db.Where(Favorite{UserID: favorite.UserID, CourseID: favorite.CourseID}).First(&favorite)
+	if !q.RecordNotFound() {
+		fmt.Printf("course is already favorite\n")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
+		json.NewEncoder(w).Encode(ErrorMsg{"course is already favorite"})
+		return
+	}
 
 	// Create favorite in DB.
 	if err := db.Create(&favorite).Error; err != nil {
