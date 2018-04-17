@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/smtp"
 	"os"
@@ -637,7 +638,7 @@ func GetCourse(w http.ResponseWriter, r *http.Request) {
 
 	var course Course
 
-	// Fetch user from db.
+	// Fetch course from db.
 	if id := params["id"]; len(id) > 0 {
 		id, err := strconv.Atoi(id)
 		if err != nil {
@@ -669,6 +670,38 @@ func GetCourse(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(&course)
 	}
 
+}
+
+// OpenCourse sends pdf string to browser
+func OpenCourse(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+
+	// Fetch course from db.
+	if id := params["id"]; len(id) > 0 {
+		id, err := strconv.Atoi(id)
+		if err != nil {
+			fmt.Printf("can not convert from string to int: %v\n", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			return
+		}
+
+		// Read data
+		iid := fmt.Sprint(id)
+		data, err := ioutil.ReadFile("data/" + iid + ".pdf")
+		if err != nil {
+			fmt.Println("error:", err)
+		}
+
+		// Encode base64 data
+		sEnc := base64.StdEncoding.EncodeToString([]byte(data))
+
+		// Success
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(&sEnc)
+	}
 }
 
 // CreateCourse ...
@@ -704,6 +737,7 @@ func CreateCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Create data
 	id := fmt.Sprint(course.Course.ID)
 	f, err := os.Create("data/" + id + ".pdf")
 	if err != nil {
@@ -909,6 +943,14 @@ func DeleteCourse(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Delete data
+		iid := fmt.Sprint(course.ID)
+		errr := os.Remove("data/" + iid + ".pdf")
+
+		if errr != nil {
+			fmt.Println(err)
+		}
+
 		if err := db.Delete(&course).Error; err != nil {
 			fmt.Printf("can not delete course: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
@@ -997,6 +1039,7 @@ func main() {
 	router.HandleFunc("/courses/{id}/status", e.CORSMiddleware(TokenAuthMiddleware(UpdateCourseStatus))).Methods("OPTIONS", "PUT", "PATCH")
 	router.HandleFunc("/courses/{id}", e.CORSMiddleware(TokenAuthMiddleware(GetCourse))).Methods("OPTIONS", "GET")
 	router.HandleFunc("/courses/{id}", e.CORSMiddleware(TokenAuthMiddleware(UpdateCourse))).Methods("OPTIONS", "PUT", "PATCH")
+	router.HandleFunc("/courses/{id}/open", e.CORSMiddleware(TokenAuthMiddleware(OpenCourse))).Methods("OPTIONS", "GET")
 
 	log.Fatal(http.ListenAndServe(":8000", router))
 }
