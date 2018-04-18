@@ -431,7 +431,6 @@ func AddFavorite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO
 	// Check if course already favorite
 	q := db.Where(Favorite{UserID: favorite.UserID, CourseID: favorite.CourseID}).First(&favorite)
 	if !q.RecordNotFound() {
