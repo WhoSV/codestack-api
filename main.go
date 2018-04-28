@@ -615,10 +615,12 @@ func Authorize(w http.ResponseWriter, r *http.Request) {
 	var resp struct {
 		Token string `json:"token"`
 		ID    uint   `json:"id"`
+		Role  string `json:"user_role"`
 	}
 
 	resp.Token = token
 	resp.ID = person.ID
+	resp.Role = person.Role
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
