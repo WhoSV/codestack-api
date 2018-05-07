@@ -4,6 +4,7 @@
 
 [CodeStack](https://github.com/WhoSV/codestack) Application Backend
 
+[![GitHub version](https://badge.fury.io/gh/WhoSV%2Fcodestack-api.svg)](https://badge.fury.io/gh/WhoSV%2Fcodestack-api)
 [![TeamCity CodeBetter](https://img.shields.io/teamcity/codebetter/bt428.svg)](https://github.com/WhoSV/codestack-api)
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg)](ttps://github.com/WhoSV/codestack-api)
 
