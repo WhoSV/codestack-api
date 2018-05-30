@@ -1099,7 +1099,7 @@ func main() {
 	router.HandleFunc("/survey", e.CORSMiddleware(TokenAuthMiddleware(CreateSurvey))).Methods("OPTIONS", "POST")
 	router.HandleFunc("/survey", e.CORSMiddleware(TokenAuthMiddleware(GetSurvey))).Methods("OPTIONS", "GET")
 
-	log.Fatal(http.ListenAndServe(":8000", router))
+	log.Fatal(http.ListenAndServe("localhost:8000", router))
 }
 
 func init() {
