@@ -1,8 +1,9 @@
-package repository
+package database
 
 import (
 	"fmt"
 
+	"github.com/WhoSV/codestack-api/model"
 	"github.com/jinzhu/gorm"
 )
 
@@ -16,10 +17,11 @@ func ConnectDB() {
 		fmt.Printf("database connection failed: %v", err)
 		return
 	}
-	db.AutoMigrate(&Person{}, &Course{}, &Favorite{}, &Survey{})
+	db.AutoMigrate(&model.Person{}, &model.Course{}, &model.Favorite{}, &model.Survey{})
+	// defer db.Close()
 }
 
-// CloseDB ...
-func CloseDB() {
-	defer db.Close()
+// DB returns the current db instance.
+func DB() *gorm.DB {
+	return db
 }

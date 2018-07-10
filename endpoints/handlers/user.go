@@ -1,4 +1,4 @@
-package repository
+package handlers
 
 import (
 	"encoding/json"
@@ -7,42 +7,23 @@ import (
 	"net/smtp"
 	"strconv"
 
+	"github.com/WhoSV/codestack-api/database"
+	"github.com/WhoSV/codestack-api/errors"
+	"github.com/WhoSV/codestack-api/model"
 	"github.com/gorilla/mux"
 )
 
-// User roles
-const (
-	RoleUndefined = "UNDEFINED"
-
-	RoleAdmin   = "ADMIN"
-	RoleTeacher = "TEACHER"
-	RoleStudent = "STUDENT"
-)
-
-// Person Type
-type Person struct {
-	ID       uint   `json:"id,omitempty" gorm:"primary_key"`
-	FullName string `json:"full_name,omitempty"`
-	Email    string `json:"email,omitempty" gorm:"unique,not null"`
-	Role     string `json:"role,omitempty"`
-	Password string `json:"password,omitempty"`
-	Token    string `json:"token"`
-}
-
-// // ErrorMsg Type
-// type ErrorMsg struct {
-// 	Message string `json:"message"`
-// }
-
 // GetPeople from the people var
 func GetPeople(w http.ResponseWriter, r *http.Request) {
-	var people []Person
+	var people []model.Person
+
+	var db = database.DB()
 
 	if err := db.Find(&people).Error; err != nil {
 		fmt.Printf("can not get all people from db: %v\n", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ErrorMsg{"can not get all people from db"})
+		json.NewEncoder(w).Encode(errors.ErrorMsg{"can not get all people from db"})
 		return
 	}
 
@@ -55,7 +36,7 @@ func GetPeople(w http.ResponseWriter, r *http.Request) {
 func GetPerson(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
-	var person Person
+	var person model.Person
 
 	// Fetch user from db.
 	if id := params["id"]; len(id) > 0 {
@@ -64,22 +45,24 @@ func GetPerson(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("can not convert from string to int: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 			return
 		}
+
+		var db = database.DB()
 
 		q := db.First(&person, id)
 		if q.RecordNotFound() {
 			fmt.Printf("record not found: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(ErrorMsg{"record not found"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"record not found"})
 			return
 		} else if q.Error != nil {
 			fmt.Printf("can not convert from string to int: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 			return
 		}
 
@@ -93,23 +76,25 @@ func GetPerson(w http.ResponseWriter, r *http.Request) {
 
 // CreatePerson ...
 func CreatePerson(w http.ResponseWriter, r *http.Request) {
-	var person Person
+	var person model.Person
 
 	if err := json.NewDecoder(r.Body).Decode(&person); err != nil {
 		fmt.Printf("json decode failed: %v\n", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+		json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 		return
 	}
 
+	var db = database.DB()
+
 	// Check if Email provided by user is unique
-	q := db.Where(Person{Email: person.Email}).First(&person)
+	q := db.Where(model.Person{Email: person.Email}).First(&person)
 	if !q.RecordNotFound() {
 		fmt.Printf("email must be unique\n")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusConflict)
-		json.NewEncoder(w).Encode(ErrorMsg{"email must be unique"})
+		json.NewEncoder(w).Encode(errors.ErrorMsg{"email must be unique"})
 		return
 	}
 
@@ -118,7 +103,7 @@ func CreatePerson(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("person creation failed: %v\n", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ErrorMsg{"person creation failed"})
+		json.NewEncoder(w).Encode(errors.ErrorMsg{"person creation failed"})
 		return
 	}
 
@@ -129,7 +114,7 @@ func CreatePerson(w http.ResponseWriter, r *http.Request) {
 func DeletePerson(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
-	var person Person
+	var person model.Person
 
 	// Fetch user from db.
 	if id := params["id"]; len(id) > 0 {
@@ -138,22 +123,24 @@ func DeletePerson(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("can not convert from string to int: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 			return
 		}
+
+		var db = database.DB()
 
 		q := db.First(&person, id)
 		if q.RecordNotFound() {
 			fmt.Printf("record not found: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(ErrorMsg{"record not found"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"record not found"})
 			return
 		} else if q.Error != nil {
 			fmt.Printf("can not convert from string to int: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 			return
 		}
 
@@ -161,7 +148,7 @@ func DeletePerson(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("can not delete person: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"can not delete person"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"can not delete person"})
 			return
 		}
 	}
@@ -180,7 +167,7 @@ func UpdatePerson(w http.ResponseWriter, r *http.Request) {
 
 	params := mux.Vars(r)
 
-	var person Person
+	var person model.Person
 
 	// Fetch user from db.
 	if id := params["id"]; len(id) > 0 {
@@ -189,22 +176,24 @@ func UpdatePerson(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("can not convert from string to int: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 			return
 		}
+
+		var db = database.DB()
 
 		q := db.First(&person, id)
 		if q.RecordNotFound() {
 			fmt.Printf("record not found: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(ErrorMsg{"record not found"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"record not found"})
 			return
 		} else if q.Error != nil {
 			fmt.Printf("can not convert from string to int: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 			return
 		}
 
@@ -213,7 +202,7 @@ func UpdatePerson(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("json decode failed: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 			return
 		}
 
@@ -222,7 +211,7 @@ func UpdatePerson(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("email must be unique\n")
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusConflict)
-			json.NewEncoder(w).Encode(ErrorMsg{"email must be unique"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"email must be unique"})
 			return
 		}
 
@@ -234,7 +223,7 @@ func UpdatePerson(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("unknown database error: %v\n", q.Error)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"unknown database error"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"unknown database error"})
 			return
 		}
 
@@ -255,7 +244,7 @@ func UpdatePersonPassword(w http.ResponseWriter, r *http.Request) {
 
 	params := mux.Vars(r)
 
-	var person Person
+	var person model.Person
 
 	// Fetch user from db.
 	if id := params["id"]; len(id) > 0 {
@@ -264,22 +253,24 @@ func UpdatePersonPassword(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("can not convert from string to int: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 			return
 		}
+
+		var db = database.DB()
 
 		q := db.First(&person, id)
 		if q.RecordNotFound() {
 			fmt.Printf("record not found: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(ErrorMsg{"record not found"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"record not found"})
 			return
 		} else if q.Error != nil {
 			fmt.Printf("can not convert from string to int: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 			return
 		}
 
@@ -288,7 +279,7 @@ func UpdatePersonPassword(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("json decode failed: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 			return
 		}
 
@@ -297,7 +288,7 @@ func UpdatePersonPassword(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("invalid password\n")
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(ErrorMsg{"invalid password"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"invalid password"})
 			return
 		}
 
@@ -307,7 +298,7 @@ func UpdatePersonPassword(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("unknown database error: %v\n", q.Error)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"unknown database error"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"unknown database error"})
 			return
 		}
 
@@ -329,7 +320,7 @@ func ResetPassword(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("json decode failed: %v\n", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+		json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 		return
 	}
 
@@ -339,26 +330,28 @@ func ResetPassword(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("validation failed: %v\n", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorMsg{"validation failed"})
+		json.NewEncoder(w).Encode(errors.ErrorMsg{"validation failed"})
 		return
 	}
 
 	// Fetch user by email address provided.
-	var person Person
+	var person model.Person
 
-	q := db.Where(Person{Email: data.Email}).First(&person)
+	var db = database.DB()
+
+	q := db.Where(model.Person{Email: data.Email}).First(&person)
 
 	if q.RecordNotFound() {
 		fmt.Printf("record not found\n")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(ErrorMsg{"invalid email or password"})
+		json.NewEncoder(w).Encode(errors.ErrorMsg{"invalid email or password"})
 		return
 	} else if q.Error != nil {
 		fmt.Printf("unknown database error: %v\n", q.Error)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ErrorMsg{"unknown database error"})
+		json.NewEncoder(w).Encode(errors.ErrorMsg{"unknown database error"})
 		return
 	}
 
@@ -372,7 +365,7 @@ func ResetPassword(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("smtp error: %v\n", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ErrorMsg{"smtp error"})
+		json.NewEncoder(w).Encode(errors.ErrorMsg{"smtp error"})
 		return
 	}
 

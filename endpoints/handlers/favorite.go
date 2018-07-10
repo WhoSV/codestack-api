@@ -1,4 +1,4 @@
-package repository
+package handlers
 
 import (
 	"encoding/json"
@@ -6,40 +6,33 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/WhoSV/codestack-api/database"
+	"github.com/WhoSV/codestack-api/errors"
+	"github.com/WhoSV/codestack-api/model"
 	"github.com/gorilla/mux"
 )
 
-// Favorite Type
-type Favorite struct {
-	ID       uint `json:"id,omitempty" gorm:"primary_key"`
-	UserID   int  `json:"user_id,omitempty"`
-	CourseID int  `json:"course_id,omitempty"`
-}
-
-// // ErrorMsg Type
-// type ErrorMsg struct {
-// 	Message string `json:"message"`
-// }
-
 // AddFavorite course to user
 func AddFavorite(w http.ResponseWriter, r *http.Request) {
-	var favorite Favorite
+	var favorite model.Favorite
 
 	if err := json.NewDecoder(r.Body).Decode(&favorite); err != nil {
 		fmt.Printf("json decode failed: %v\n", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+		json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 		return
 	}
 
+	var db = database.DB()
+
 	// Check if course already favorite
-	q := db.Where(Favorite{UserID: favorite.UserID, CourseID: favorite.CourseID}).First(&favorite)
+	q := db.Where(model.Favorite{UserID: favorite.UserID, CourseID: favorite.CourseID}).First(&favorite)
 	if !q.RecordNotFound() {
 		fmt.Printf("course is already favorite\n")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusConflict)
-		json.NewEncoder(w).Encode(ErrorMsg{"course is already favorite"})
+		json.NewEncoder(w).Encode(errors.ErrorMsg{"course is already favorite"})
 		return
 	}
 
@@ -48,7 +41,7 @@ func AddFavorite(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("favorite creation failed: %v\n", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ErrorMsg{"favorite creation failed"})
+		json.NewEncoder(w).Encode(errors.ErrorMsg{"favorite creation failed"})
 		return
 	}
 
@@ -57,13 +50,15 @@ func AddFavorite(w http.ResponseWriter, r *http.Request) {
 
 // GetFavorites display's all from Favorite db
 func GetFavorites(w http.ResponseWriter, r *http.Request) {
-	var favorite []Favorite
+	var favorite []model.Favorite
+
+	var db = database.DB()
 
 	if err := db.Find(&favorite).Error; err != nil {
 		fmt.Printf("can not get all favorite from db: %v\n", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ErrorMsg{"can not get all favorite from db"})
+		json.NewEncoder(w).Encode(errors.ErrorMsg{"can not get all favorite from db"})
 		return
 	}
 
@@ -76,7 +71,7 @@ func GetFavorites(w http.ResponseWriter, r *http.Request) {
 func DeleteFavorite(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
-	var favorite Favorite
+	var favorite model.Favorite
 
 	// Fetch favorite from db.
 	if id := params["id"]; len(id) > 0 {
@@ -85,22 +80,24 @@ func DeleteFavorite(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("can not convert from string to int: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 			return
 		}
+
+		var db = database.DB()
 
 		q := db.First(&favorite, id)
 		if q.RecordNotFound() {
 			fmt.Printf("record not found: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(ErrorMsg{"record not found"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"record not found"})
 			return
 		} else if q.Error != nil {
 			fmt.Printf("can not convert from string to int: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 			return
 		}
 
@@ -108,7 +105,7 @@ func DeleteFavorite(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("can not delete person: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"can not delete person"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"can not delete person"})
 			return
 		}
 	}

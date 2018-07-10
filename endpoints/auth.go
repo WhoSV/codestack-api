@@ -6,14 +6,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/WhoSV/codestack-api/repository"
+	"github.com/WhoSV/codestack-api/database"
+	"github.com/WhoSV/codestack-api/errors"
+	model "github.com/WhoSV/codestack-api/model"
 	"github.com/google/uuid"
 )
-
-// ErrorMsg Type
-type ErrorMsg struct {
-	Message string `json:"message"`
-}
 
 // TokenAuthMiddleware : Generate auth token
 func TokenAuthMiddleware(h http.HandlerFunc) http.HandlerFunc {
@@ -24,7 +21,7 @@ func TokenAuthMiddleware(h http.HandlerFunc) http.HandlerFunc {
 			fmt.Printf("malformed authorization token\n")
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(ErrorMsg{"Authorization token should be in the form of Authorization: Bearer <token>"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"Authorization token should be in the form of Authorization: Bearer <token>"})
 			return
 		}
 
@@ -32,27 +29,29 @@ func TokenAuthMiddleware(h http.HandlerFunc) http.HandlerFunc {
 			fmt.Printf("authorization token is not bearer kind\n")
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(ErrorMsg{"Authorization token should be in the form of Authorization: Bearer <token>"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"Authorization token should be in the form of Authorization: Bearer <token>"})
 			return
 		}
 
 		token := s[1]
 
 		// Check token
-		var person repository.Person
+		var person model.Person
 
-		q := db.Where(repository.Person{Token: token}).First(&person)
+		var db = database.DB()
+
+		q := db.Where(model.Person{Token: token}).First(&person)
 		if q.RecordNotFound() {
 			fmt.Printf("not authorized\n")
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(ErrorMsg{"Not Authorized"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"Not Authorized"})
 			return
 		} else if q.Error != nil {
 			fmt.Printf("unknown database error: %v\n", q.Error)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"unknown database error"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"unknown database error"})
 			return
 		}
 
@@ -73,7 +72,7 @@ func Authorize(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("json decode failed: %v\n", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+		json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 		return
 	}
 
@@ -83,7 +82,7 @@ func Authorize(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("validation failed: %v\n", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorMsg{"validation failed"})
+		json.NewEncoder(w).Encode(errors.ErrorMsg{"validation failed"})
 		return
 	}
 	if len(data.Password) == 0 {
@@ -91,26 +90,28 @@ func Authorize(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("validation failed: %v\n", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorMsg{"validation failed"})
+		json.NewEncoder(w).Encode(errors.ErrorMsg{"validation failed"})
 		return
 	}
 
 	// Fetch user by email address provided.
-	var person repository.Person
+	var person model.Person
 
-	q := db.Where(repository.Person{Email: data.Email}).First(&person)
+	var db = database.DB()
+
+	q := db.Where(model.Person{Email: data.Email}).First(&person)
 
 	if q.RecordNotFound() {
 		fmt.Printf("record not found\n")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(ErrorMsg{"invalid email or password"})
+		json.NewEncoder(w).Encode(errors.ErrorMsg{"invalid email or password"})
 		return
 	} else if q.Error != nil {
 		fmt.Printf("unknown database error: %v\n", q.Error)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ErrorMsg{"unknown database error"})
+		json.NewEncoder(w).Encode(errors.ErrorMsg{"unknown database error"})
 		return
 	}
 
@@ -119,7 +120,7 @@ func Authorize(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("invalid password\n")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(ErrorMsg{"invalid email or password"})
+		json.NewEncoder(w).Encode(errors.ErrorMsg{"invalid email or password"})
 		return
 	}
 
@@ -131,7 +132,7 @@ func Authorize(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("unknown uuid generation error: %v\n", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ErrorMsg{"unknown uuid generation error"})
+		json.NewEncoder(w).Encode(errors.ErrorMsg{"unknown uuid generation error"})
 		return
 	}
 	token = randUUID.String()
@@ -142,7 +143,7 @@ func Authorize(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("unknown database error: %v\n", q.Error)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ErrorMsg{"unknown database error"})
+		json.NewEncoder(w).Encode(errors.ErrorMsg{"unknown database error"})
 		return
 	}
 

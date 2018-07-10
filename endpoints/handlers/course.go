@@ -1,4 +1,4 @@
-package repository
+package handlers
 
 import (
 	"encoding/base64"
@@ -10,43 +10,23 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/WhoSV/codestack-api/database"
+	"github.com/WhoSV/codestack-api/errors"
+	"github.com/WhoSV/codestack-api/model"
 	"github.com/gorilla/mux"
 )
 
-// Course status
-const (
-	StatusUndefined = "UNDEFINED"
-
-	StatusActive  = "ACTIVE"
-	StatusBlocked = "BLOCKED"
-)
-
-// Course Type
-type Course struct {
-	ID          uint   `json:"id,omitempty" gorm:"primary_key"`
-	Name        string `json:"name,omitempty"`
-	Description string `json:"description,omitempty"`
-	Teacher     string `json:"teacher,omitempty"`
-	TeacherID   string `json:"teacher_id,omitempty"`
-	Status      string `json:"status,omitempty"`
-	CreatedAt   string `json:"created_at,omitempty"`
-	FileName    string `json:"file_name,omitempty"`
-}
-
-// ErrorMsg Type
-type ErrorMsg struct {
-	Message string `json:"message"`
-}
-
 // GetCourses display's all from the course var
 func GetCourses(w http.ResponseWriter, r *http.Request) {
-	var courses []Course
+	var courses []model.Course
+
+	var db = database.DB()
 
 	if err := db.Find(&courses).Error; err != nil {
 		fmt.Printf("can not get all courses from db: %v\n", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ErrorMsg{"can not get all courses from db"})
+		json.NewEncoder(w).Encode(errors.ErrorMsg{"can not get all courses from db"})
 		return
 	}
 
@@ -59,7 +39,9 @@ func GetCourses(w http.ResponseWriter, r *http.Request) {
 func GetCourse(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
-	var course Course
+	var course model.Course
+
+	var db = database.DB()
 
 	// Fetch course from db.
 	if id := params["id"]; len(id) > 0 {
@@ -68,7 +50,7 @@ func GetCourse(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("can not convert from string to int: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 			return
 		}
 
@@ -77,13 +59,13 @@ func GetCourse(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("record not found: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(ErrorMsg{"record not found"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"record not found"})
 			return
 		} else if q.Error != nil {
 			fmt.Printf("can not convert from string to int: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 			return
 		}
 
@@ -106,7 +88,7 @@ func OpenCourse(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("can not convert from string to int: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 			return
 		}
 
@@ -130,7 +112,7 @@ func OpenCourse(w http.ResponseWriter, r *http.Request) {
 // CreateCourse ...
 func CreateCourse(w http.ResponseWriter, r *http.Request) {
 	var course struct {
-		Course
+		model.Course
 		FileBody string `json:"file_body"`
 	}
 
@@ -138,7 +120,7 @@ func CreateCourse(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("json decode failed: %v\n", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+		json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 		return
 	}
 
@@ -151,12 +133,14 @@ func CreateCourse(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("error:", err)
 	}
 
+	var db = database.DB()
+
 	// Create new course in DB.
 	if err := db.Create(&course.Course).Error; err != nil {
 		fmt.Printf("course creation failed: %v\n", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ErrorMsg{"course creation failed"})
+		json.NewEncoder(w).Encode(errors.ErrorMsg{"course creation failed"})
 		return
 	}
 
@@ -190,7 +174,7 @@ func UpdateCourse(w http.ResponseWriter, r *http.Request) {
 
 	params := mux.Vars(r)
 
-	var course Course
+	var course model.Course
 
 	// Fetch course from db.
 	if id := params["id"]; len(id) > 0 {
@@ -199,22 +183,24 @@ func UpdateCourse(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("can not convert from string to int: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 			return
 		}
+
+		var db = database.DB()
 
 		q := db.First(&course, id)
 		if q.RecordNotFound() {
 			fmt.Printf("record not found: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(ErrorMsg{"record not found"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"record not found"})
 			return
 		} else if q.Error != nil {
 			fmt.Printf("can not convert from string to int: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 			return
 		}
 
@@ -223,7 +209,7 @@ func UpdateCourse(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("json decode failed: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 			return
 		}
 
@@ -259,7 +245,7 @@ func UpdateCourse(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("unknown database error: %v\n", q.Error)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"unknown database error"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"unknown database error"})
 			return
 		}
 
@@ -279,7 +265,7 @@ func UpdateCourseStatus(w http.ResponseWriter, r *http.Request) {
 
 	params := mux.Vars(r)
 
-	var course Course
+	var course model.Course
 
 	// Fetch course from db.
 	if id := params["id"]; len(id) > 0 {
@@ -288,22 +274,24 @@ func UpdateCourseStatus(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("can not convert from string to int: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 			return
 		}
+
+		var db = database.DB()
 
 		q := db.First(&course, id)
 		if q.RecordNotFound() {
 			fmt.Printf("record not found: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(ErrorMsg{"record not found"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"record not found"})
 			return
 		} else if q.Error != nil {
 			fmt.Printf("can not convert from string to int: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 			return
 		}
 
@@ -312,7 +300,7 @@ func UpdateCourseStatus(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("json decode failed: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 			return
 		}
 
@@ -323,7 +311,7 @@ func UpdateCourseStatus(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("unknown database error: %v\n", q.Error)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"unknown database error"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"unknown database error"})
 			return
 		}
 
@@ -338,7 +326,7 @@ func UpdateCourseStatus(w http.ResponseWriter, r *http.Request) {
 func DeleteCourse(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
-	var course Course
+	var course model.Course
 
 	// Fetch course from db.
 	if id := params["id"]; len(id) > 0 {
@@ -347,22 +335,24 @@ func DeleteCourse(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("can not convert from string to int: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 			return
 		}
+
+		var db = database.DB()
 
 		q := db.First(&course, id)
 		if q.RecordNotFound() {
 			fmt.Printf("record not found: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(ErrorMsg{"record not found"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"record not found"})
 			return
 		} else if q.Error != nil {
 			fmt.Printf("can not convert from string to int: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"json decode failed"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"json decode failed"})
 			return
 		}
 
@@ -378,7 +368,7 @@ func DeleteCourse(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("can not delete course: %v\n", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorMsg{"can not delete course"})
+			json.NewEncoder(w).Encode(errors.ErrorMsg{"can not delete course"})
 			return
 		}
 	}
