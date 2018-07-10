@@ -26,6 +26,84 @@
 
 `http://localhost:8000`
 
+## Structure
+
+```
+├── data
+├── database              // Database
+│   └──db.go
+├── endpoints             // Endpoints
+│   ├── handlers          // API core handlers
+│   │   ├── course.go
+│   │   ├── favorite.go
+│   │   ├── survey.go
+│   │   └── user.go
+│   ├── auth.go
+│   └── middleware.go
+├── errors                // Errors
+│   └──error.go
+├── model                 // Models for our application
+│   ├── course.go
+│   ├── favorite.go
+│   ├── survey.go
+│   └── user.go
+└── main.go
+```
+
+## API
+
+#### /people
+
+- `GET` : Get all users
+- `POST` : Create a new user
+
+#### /people/{id}
+
+- `GET` : Get user
+- `PUT` `PATCH` : Update user
+- `DELETE` : Delete user
+
+#### /people/{id}/update
+
+- `PUT` `PATCH` : Update user password
+
+#### /people/{id}/reset
+
+- `POST` : Reset user password
+
+#### /favorite
+
+- `GET` : Get favorite
+- `POST` : Create favorite
+
+#### /favorite{id}
+
+- `DELETE` : Detele favorite
+
+### /courses
+
+- `GET` : Get all courses
+- `POST` : Create a new course
+
+#### /courses/{id}
+
+- `GET` : Get course
+- `PUT` `PATCH` : Update course
+- `DELETE` : Delete course
+
+#### /courses/{id}/status
+
+- `PUT` `PATCH` : Update course status
+
+#### /courses/{id}/open
+
+- `GET` : Open course
+
+#### /survey
+
+- `GET` : Get surveys
+- `POST` : Create a new survey
+
 ## Frontend for this Application
 
 [CodeStack](https://github.com/WhoSV/codestack)
