@@ -109,7 +109,3 @@ A REST-ful API for [CodeStack](https://github.com/WhoSV/codestack) application w
 
 - `GET` : Get surveys
 - `POST` : Create a new survey
-
-## Frontend for this Application
-
-[CodeStack](https://github.com/WhoSV/codestack)
