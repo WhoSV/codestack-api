@@ -1,0 +1,9 @@
+{
+  "db": {
+    "type": "sqlite3",
+    "url": "codestack.db"
+  },
+  "server": {
+    "port": ":8000"
+  }
+}

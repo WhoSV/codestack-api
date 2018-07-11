@@ -1,16 +1,16 @@
 # Codestack-Api
 
-<!-- v1.1.0 -->
+<!-- v1.2.0 -->
 
 [![GitHub version](https://badge.fury.io/gh/WhoSV%2Fcodestack-api.svg)](https://badge.fury.io/gh/WhoSV%2Fcodestack-api)
 [![TeamCity CodeBetter](https://img.shields.io/teamcity/codebetter/bt428.svg)](https://github.com/WhoSV/codestack-api)
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg)](ttps://github.com/WhoSV/codestack-api)
 
-A RESTful API for [CodeStack](https://github.com/WhoSV/codestack) application with Go (golang)
+A REST-ful API for [CodeStack](https://github.com/WhoSV/codestack) application with Go (golang)
 
 ![alternativetext](screenshot.png)
 
-## Getting started
+## Quick Start
 
 **Get dependencies**
 
@@ -20,7 +20,7 @@ A RESTful API for [CodeStack](https://github.com/WhoSV/codestack) application wi
 
 **Run**
 
-`go run main.go`
+`$ go run main.go`
 
 **Browse**
 
@@ -47,6 +47,12 @@ A RESTful API for [CodeStack](https://github.com/WhoSV/codestack) application wi
 │   ├── favorite.go
 │   ├── survey.go
 │   └── user.go
+├── repository            // Repository
+│   ├── user.go
+├── router                // Routes
+│   ├── router.go
+├── server                // Server
+│   ├── server.go
 └── main.go
 ```
 
@@ -80,7 +86,7 @@ A RESTful API for [CodeStack](https://github.com/WhoSV/codestack) application wi
 
 - `DELETE` : Detele favorite
 
-### /courses
+##### /courses
 
 - `GET` : Get all courses
 - `POST` : Create a new course

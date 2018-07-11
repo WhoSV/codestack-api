@@ -18,10 +18,14 @@ func ConnectDB() {
 		return
 	}
 	db.AutoMigrate(&model.Person{}, &model.Course{}, &model.Favorite{}, &model.Survey{})
-	// defer db.Close()
 }
 
 // DB returns the current db instance.
 func DB() *gorm.DB {
 	return db
+}
+
+// CloseDB stops database
+func CloseDB() {
+	db.Close()
 }

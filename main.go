@@ -2,52 +2,112 @@ package main
 
 import (
 	"log"
+	"os"
 
-	"net/http"
-
-	"github.com/gorilla/mux"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	"github.com/urfave/cli"
 
 	"github.com/WhoSV/codestack-api/database"
-	e "github.com/WhoSV/codestack-api/endpoints"
-	"github.com/WhoSV/codestack-api/endpoints/handlers"
+	"github.com/WhoSV/codestack-api/model"
+	"github.com/WhoSV/codestack-api/repository"
+	"github.com/WhoSV/codestack-api/server"
 )
 
-// func NewRouter() *mux.Router
-// main function to boot up everything
 func main() {
-	database.ConnectDB()
-	router := mux.NewRouter()
+	app := cli.NewApp()
+	app.Name = "sodestack-api"
+	app.Usage = "CodeStack API Server"
+	app.Version = "1.2.0"
+	app.Commands = []cli.Command{
+		{
+			Name:    "run",
+			Aliases: []string{"r"},
+			Usage:   "Start API server.",
+			Action: func(c *cli.Context) {
+				println("action:", "run")
 
-	// Authorization
-	router.HandleFunc("/auth", e.CORSMiddleware(e.Authorize)).Methods("OPTIONS", "POST")
+				// Run the App here
+				server.ExecuteServer()
+			},
 
-	// Users
-	router.HandleFunc("/people", e.CORSMiddleware(handlers.GetPeople)).Methods("OPTIONS", "GET") // add e.TokenAuthMiddleware
-	router.HandleFunc("/people/{id}", e.CORSMiddleware(e.TokenAuthMiddleware(handlers.GetPerson))).Methods("OPTIONS", "GET")
-	router.HandleFunc("/people", e.CORSMiddleware(handlers.CreatePerson)).Methods("OPTIONS", "POST")
-	router.HandleFunc("/people/{id}", e.CORSMiddleware(handlers.UpdatePerson)).Methods("OPTIONS", "PUT", "PATCH")
-	router.HandleFunc("/people/{id}/update", e.CORSMiddleware(handlers.UpdatePersonPassword)).Methods("OPTIONS", "PUT", "PATCH")
-	router.HandleFunc("/people/{id}", e.CORSMiddleware(e.TokenAuthMiddleware(handlers.DeletePerson))).Methods("OPTIONS", "DELETE")
-	router.HandleFunc("/people/reset", e.CORSMiddleware(handlers.ResetPassword)).Methods("OPTIONS", "POST")
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "config-path",
+					Value: "config.json",
+					Usage: "Path to the config file",
+				},
+			},
+		},
+		{
+			Name:    "createadminuser",
+			Aliases: []string{"c"},
+			Usage:   "Create a new admin user.",
+			Action: func(c *cli.Context) {
+				println("action:", "create admin user")
 
-	// Favorite
-	router.HandleFunc("/favorite", e.CORSMiddleware(e.TokenAuthMiddleware(handlers.AddFavorite))).Methods("OPTIONS", "POST")
-	router.HandleFunc("/favorite", e.CORSMiddleware(e.TokenAuthMiddleware(handlers.GetFavorites))).Methods("OPTIONS", "GET")
-	router.HandleFunc("/favorite/{id}", e.CORSMiddleware(e.TokenAuthMiddleware(handlers.DeleteFavorite))).Methods("OPTIONS", "DELETE")
+				email := c.String("email")
+				password := c.String("password")
+				role := c.String("admin")
+				fullName := c.String("full_name")
 
-	// Courses
-	router.HandleFunc("/courses", e.CORSMiddleware(e.TokenAuthMiddleware(handlers.GetCourses))).Methods("OPTIONS", "GET")
-	router.HandleFunc("/courses", e.CORSMiddleware(e.TokenAuthMiddleware(handlers.CreateCourse))).Methods("OPTIONS", "POST")
-	router.HandleFunc("/courses/{id}", e.CORSMiddleware(e.TokenAuthMiddleware(handlers.DeleteCourse))).Methods("OPTIONS", "DELETE")
-	router.HandleFunc("/courses/{id}/status", e.CORSMiddleware(e.TokenAuthMiddleware(handlers.UpdateCourseStatus))).Methods("OPTIONS", "PUT", "PATCH")
-	router.HandleFunc("/courses/{id}", e.CORSMiddleware(e.TokenAuthMiddleware(handlers.GetCourse))).Methods("OPTIONS", "GET")
-	router.HandleFunc("/courses/{id}", e.CORSMiddleware(e.TokenAuthMiddleware(handlers.UpdateCourse))).Methods("OPTIONS", "PUT", "PATCH")
-	router.HandleFunc("/courses/{id}/open", e.CORSMiddleware(e.TokenAuthMiddleware(handlers.OpenCourse))).Methods("OPTIONS", "GET")
+				// Validate required options.
+				if len(email) == 0 {
+					log.Fatal("Email can not be empty.")
+				}
+				if len(password) == 0 {
+					log.Fatal("Password can not be empty.")
+				}
+				// set default value if empty
+				if len(role) == 0 {
+					role = model.RoleAdmin
+				}
+				if len(fullName) == 0 {
+					log.Fatal("fullName can not be empty.")
+				}
 
-	// Surveys
-	router.HandleFunc("/survey", e.CORSMiddleware(e.TokenAuthMiddleware(handlers.CreateSurvey))).Methods("OPTIONS", "POST")
-	router.HandleFunc("/survey", e.CORSMiddleware(e.TokenAuthMiddleware(handlers.GetSurvey))).Methods("OPTIONS", "GET")
+				database.ConnectDB()
+				defer database.CloseDB()
+				person, err := repository.CreateNewPerson(email, password, role, fullName)
+				if err != nil {
+					log.Fatal("Can not create user:", err.Error())
+					return
+				}
+				log.Println("User:", person.Email, "created successfuly!")
 
-	log.Fatal(http.ListenAndServe("localhost:8000", router))
+			},
+
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "config-path",
+					Value: "config.json",
+					Usage: "Path to the config file",
+				},
+				cli.StringFlag{
+					Name:  "email",
+					Value: "",
+					Usage: "User's email address",
+				},
+				cli.StringFlag{
+					Name:  "password",
+					Value: "",
+					Usage: "User's password",
+				},
+				cli.StringFlag{
+					Name:  "role",
+					Value: "",
+					Usage: "User's role",
+				},
+				cli.StringFlag{
+					Name:  "full_name",
+					Value: "",
+					Usage: "User's full name",
+				},
+			},
+		},
+	}
+
+	err := app.Run(os.Args)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
