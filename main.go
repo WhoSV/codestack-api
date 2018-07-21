@@ -15,7 +15,7 @@ import (
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "sodestack-api"
+	app.Name = "codestack-api"
 	app.Usage = "CodeStack API Server"
 	app.Version = "1.2.0"
 	app.Commands = []cli.Command{
